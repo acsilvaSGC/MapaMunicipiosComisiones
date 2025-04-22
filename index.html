@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Mapa de Municipios</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Estilos de Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet.js -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+  const map = L.map('map').setView([40.4168, -3.7038], 6); // Centrado en España
+
+  const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1742319415&single=true&output=csv';
+
+  function getColor(valor) {
+    return valor > 100 ? '#800026' :
+           valor > 50  ? '#BD0026' :
+           valor > 20  ? '#E31A1C' :
+           valor > 10  ? '#FC4E2A' :
+           valor > 0   ? '#FD8D3C' :
+                         '#FFEDA0';
+  }
+
+  async function cargarDatosYActualizar() {
+    const res = await fetch(sheetURL);
+    const csvText = await res.text();
+
+    const rows = csvText.split('\n').slice(1).map(line => {
+      const [id, nombre, valor] = line.split(',');
+      return { id: id.trim(), nombre: nombre.trim(), valor: parseFloat(valor) };
+    });
+
+    const dataMap = {};
+    rows.forEach(row => {
+      dataMap[row.id] = row;
+    });
+
+    const geoRes = await fetch('https://www.dropbox.com/scl/fi/celc6xwmbo4qo57sjgo4k/Municipios.geojson?rlkey=crt8cnlz4vta12zg9epfn8s22&st=yhvcrxwk&dl=1');
+    const geojson = await geoRes.json();
+
+    L.geoJSON(geojson, {
+      style: feature => {
+        const id = feature.properties.municipio_id || feature.properties.cvegeo || feature.properties.CODIGOINE;
+        const data = dataMap[id];
+        const valor = data ? data.valor : 0;
+
+        return {
+          fillColor: getColor(valor),
+          color: 'white',
+          weight: 1,
+          fillOpacity: 0.7
+        };
+      },
+      onEachFeature: (feature, layer) => {
+        const id = feature.properties.municipio_id || feature.properties.cvegeo || feature.properties.CODIGOINE;
+        const data = dataMap[id];
+        const nombre = data ? data.nombre : 'Sin nombre';
+        const valor = data ? data.valor : 'Sin valor';
+
+        layer.bindPopup(`<strong>${nombre}</strong><br>Valor: ${valor}`);
+      }
+    }).addTo(map);
+  }
+
+  cargarDatosYActualizar();
+</script>
+
+</body>
+</html>
