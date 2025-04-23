@@ -43,6 +43,16 @@
 
     // URL del CSV de Google Sheets
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
+const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
+
+Papa.parse(noCacheUrl, {
+  download: true,
+  header: true,
+  complete: function(results) {
+    const data = results.data;
+    // tu lógica para mapear y colorear
+  }
+});
 
     Papa.parse(sheetUrl, {
       download: true,
