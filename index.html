@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mapa de Municipios</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Tabletop.js para Google Sheets -->
+<script src="https://unpkg.com/tabletop@1.5.4/tabletop.js"></script>
+
+<script>
+  const SHEET_ID = "1ivoSIHBfq8mdz2GWvH2d_vD45GuY9lISSTIFblVwtSM";
+  const SHEET_NAME = "Mapa";
+  const GEOJSON_URL = "https://www.dropbox.com/scl/fi/gruvtljv2xaa2w9gscph9/Municipios.geojson?rlkey=3yz7irw3zwb4qpm5ijb83m0q3&raw=1";
+
+  const map = L.map('map').setView([4.5709, -74.2973], 5); // Centro de Colombia
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(map);
+
+  // Cargar datos de Google Sheets
+  Tabletop.init({
+    key: SHEET_ID,
+    simpleSheet: true,
+    wanted: [SHEET_NAME],
+    callback: function(data) {
+      const cantidadPorCodigo = {};
+      data.forEach(row => {
+        cantidadPorCodigo[row.MpCodigo] = parseFloat(row.Cantidad) || 0;
+      });
+
+      // Cargar GeoJSON y aplicar sombreado
+      fetch(GEOJSON_URL)
+        .then(res => res.json())
+        .then(geojson => {
+          L.geoJSON(geojson, {
+            style: feature => {
+              const codigo = feature.properties.MpCodigo;
+              const cantidad = cantidadPorCodigo[codigo] || 0;
+              return {
+                fillColor: getColor(cantidad),
+                weight: 1,
+                color: 'white',
+                fillOpacity: 0.7
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const codigo = feature.properties.MpCodigo;
+              const cantidad = cantidadPorCodigo[codigo] || 0;
+              layer.bindPopup(`<strong>MpCodigo:</strong> ${codigo}<br><strong>Cantidad:</strong> ${cantidad}`);
+            }
+          }).addTo(map);
+        })
+        .catch(error => {
+          console.error("Error cargando GeoJSON:", error);
+        });
+    },
+    error: err => console.error("Error cargando Google Sheets:", err)
+  });
+
+  // Función para color según valor
+  function getColor(d) {
+    return d > 1000 ? '#800026' :
+           d > 500  ? '#BD0026' :
+           d > 200  ? '#E31A1C' :
+           d > 100  ? '#FC4E2A' :
+           d > 50   ? '#FD8D3C' :
+           d > 20   ? '#FEB24C' :
+           d > 10   ? '#FED976' :
+                      '#FFEDA0';
+  }
+</script>
+
+</body>
+</html>
+
