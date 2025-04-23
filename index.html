@@ -87,11 +87,12 @@ Papa.parse(noCacheUrl, {
                 };
               },
               onEachFeature: (feature, layer) => {
-                const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const cantidad = cantidadMap[codigo] || 0;
-                const nombre = feature.properties?.NOMBRE || 'Municipio sin nombre';
-                layer.bindPopup(`<strong>${nombre}</strong><br>Cantidad: ${cantidad}`);
-              }
+            const codigo = feature.properties?.MpCodigo?.toString().trim();
+  const cantidad = cantidadMap[codigo] || 0;
+  const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
+  layer.bindPopup(`<strong>${nombre}</strong><br>Cantidad: ${cantidad}`);
+}
+
             }).addTo(map);
           });
       }
