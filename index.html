@@ -18,133 +18,73 @@
   </style>
 </head>
 <body>
+
   <div style="position: absolute; z-index: 1000; background: white; padding: 10px; border-radius: 8px; top: 10px; left: 10px; box-shadow: 0 0 5px rgba(0,0,0,0.3);">
-  <label>Color bajo: <input type="color" id="colorLow" value="#FFEDA0"></label><br>
-  <label>Color medio: <input type="color" id="colorMid" value="#FC4E2A"></label><br>
-  <label>Color alto: <input type="color" id="colorHigh" value="#800026"></label><br>
-  <button onclick="actualizarColores()">Actualizar colores</button>
-</div>
+    <label>Color bajo: <input type="color" id="colorLow" value="#FFEDA0"></label><br>
+    <label>Color medio: <input type="color" id="colorMid" value="#FC4E2A"></label><br>
+    <label>Color alto: <input type="color" id="colorHigh" value="#800026"></label><br>
+    <button onclick="actualizarColores()">Actualizar colores</button>
+  </div>
+
   <div id="map"></div>
 
   <script>
+    let colorLow = "#FFEDA0";
+    let colorMid = "#FC4E2A";
+    let colorHigh = "#800026";
+
+    function getColor(d) {
+      return d > 100 ? colorHigh :
+             d > 10  ? colorMid :
+                       colorLow;
+    }
+
+    function actualizarColores() {
+      colorLow = document.getElementById("colorLow").value;
+      colorMid = document.getElementById("colorMid").value;
+      colorHigh = document.getElementById("colorHigh").value;
+
+      // Recargar el mapa con nuevos colores
+      map.eachLayer(layer => {
+        if (layer.feature) map.removeLayer(layer); // Eliminar solo capas GeoJSON
+      });
+
+      cargarGeoJSON(); // Función para volver a cargar el GeoJSON con colores nuevos
+    }
+
+    function cargarGeoJSON() {
+      fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
+        .then(res => res.json())
+        .then(geojson => {
+          L.geoJSON(geojson, {
+            style: feature => {
+              const codigo = feature.properties?.MpCodigo?.toString().trim();
+              const valor = cantidadMap[codigo] || 0;
+              return {
+                fillColor: getColor(valor),
+                weight: 1,
+                color: "#333",
+                fillOpacity: 0.7
+              };
+            },
+            onEachFeature: (feature, layer) => {
+              const codigo = feature.properties?.MpCodigo?.toString().trim();
+              const nombre = feature.properties?.MpNombre || "Municipio sin nombre";
+              const cantidad = cantidadMap[codigo] || 0;
+              layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
+            }
+          }).addTo(map);
+        });
+    }
+
     const map = L.map('map').setView([4.5709, -74.2973], 6);
 
     // Capa base de OpenStreetMap
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 19
-}).addTo(map);
-
-    // Función para asignar color según la cantidad
-  let colorLow = "#FFEDA0";
-  let colorMid = "#FC4E2A";
-  let colorHigh = "#800026";
-    
-    function getColor(d) {
-    return d > 100 ? colorHigh :
-           d > 10  ? colorMid :
-                     colorLow;
-  }
-
-  function actualizarColores() {
-    colorLow = document.getElementById("colorLow").value;
-    colorMid = document.getElementById("colorMid").value;
-    colorHigh = document.getElementById("colorHigh").value;
-
-    // Recargar el mapa con nuevos colores
-    map.eachLayer(layer => {
-      if (layer.feature) map.removeLayer(layer); // Eliminar solo capas GeoJSON
-    });
-
-    cargarGeoJSON(); // Función para volver a cargar el GeoJSON con colores nuevos
-  }
-
-  function cargarGeoJSON() {
-    fetch(geojsonURL)
-      .then(res => res.json())
-      .then(geojson => {
-        L.geoJSON(geojson, {
-          style: feature => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-            const valor = cantidadMap[codigo] || 0;
-            return {
-              fillColor: getColor(valor),
-              weight: 1,
-              color: "#333",
-              fillOpacity: 0.7
-            };
-          },
-          onEachFeature: (feature, layer) => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-            const nombre = feature.properties?.MpNombre || "Municipio sin nombre";
-            const cantidad = cantidadMap[codigo] || 0;
-            layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
-          }
-        }).addTo(map);
-      });
-  }
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
     // URL del CSV de Google Sheets
-    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
-const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
-
-Papa.parse(noCacheUrl, {
-  download: true,
-  header: true,
-  complete: function(results) {
-    const data = results.data;
-    // tu lógica para mapear y colorear
-  }
-});
-
-    Papa.parse(sheetUrl, {
-      download: true,
-      header: true,
-      complete: function(results) {
-        const data = results.data;
-
-        // Crear mapa { MpCodigo: Cantidad }
-        const cantidadMap = {};
-        data.forEach(row => {
-          const codigo = row['MpCodigo']?.trim();
-          const cantidad = parseFloat(row['Cantidad']);
-          if (codigo && !isNaN(cantidad)) {
-            cantidadMap[codigo] = cantidad;
-          }
-        });
-
-        // Cargar el GeoJSON y aplicar estilo según cantidad
-        fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
-          .then(res => res.json())
-          .then(geojson => {
-            L.geoJSON(geojson, {
-              style: feature => {
-                const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const cantidad = cantidadMap[codigo] || 0;
-                return {
-                  fillColor: getColor(cantidad),
-                  weight: 1,
-                  opacity: 1,
-                  color: 'white',
-                  fillOpacity: 0.7
-                };
-              },
-              onEachFeature: (feature, layer) => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-  const cantidad = cantidadMap[codigo] || 0;
-  const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-  layer.bindPopup(`
-    <strong>${nombre}</strong><br>
-    Código: ${codigo}<br>
-    Cantidad: ${cantidad}
-  `);
-}
-
-            }).addTo(map);
-          });
-      }
-    });
-  </script>
-</body>
-</html>
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRU
