@@ -16,7 +16,7 @@
   <div id="map"></div>
 
   <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tabletop.js/1.5.1/tabletop.min.js"></script>
   <!-- PapaParse para leer CSV -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -28,7 +28,7 @@
     }).addTo(map);
 
     const csvURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv";
-    const geojsonURL = "https://www.dropbox.com/scl/fi/gruvtljv2xaa2w9gscph9/Municipios.geojson?rlkey=3yz7irw3zwb4qpm5ijb83m0q3&st=ic7t5eyy&raw=1";
+    const geojsonURL = "https://www.dropbox.com/scl/fi/gruvtljv2xaa2w9gscph9/Municipios.geojson?rlkey=3yz7irw3zwb4qpm5ijb83m0q3&e=1&st=il3dmykg&dl=1";
 
     function getColor(d) {
       return d > 100 ? '#800026' :
