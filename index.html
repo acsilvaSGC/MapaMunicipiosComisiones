@@ -90,7 +90,11 @@ Papa.parse(noCacheUrl, {
             const codigo = feature.properties?.MpCodigo?.toString().trim();
   const cantidad = cantidadMap[codigo] || 0;
   const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-  layer.bindPopup(`<strong>${nombre}</strong><br>Cantidad: ${cantidad}`);
+  layer.bindPopup(`
+    <strong>${nombre}</strong><br>
+    Código: ${codigo}<br>
+    Cantidad: ${cantidad}
+  `);
 }
 
             }).addTo(map);
