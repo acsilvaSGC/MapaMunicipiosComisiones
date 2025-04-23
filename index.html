@@ -7,50 +7,83 @@
 
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- PapaParse para leer Google Sheets CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
   <style>
-    html, body {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    #map {
-      width: 100%;
-      height: 100vh;
-    }
+    html, body { height: 100%; margin: 0; }
+    #map { width: 100%; height: 100vh; }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
   <script>
-    // Crear el mapa y centrarlo en Colombia
-    var map = L.map('map').setView([4.5709, -74.2973], 6);
+    const map = L.map('map').setView([4.5709, -74.2973], 6);
 
-    // Agregar capa base de OpenStreetMap
+    // Capa base de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(map);
 
-    // Cargar GeoJSON desde GitHub Pages (ajusta si está en otra carpeta)
-    fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
-      .then(response => response.json())
-      .then(data => {
-        L.geoJSON(data, {
-          style: {
-            color: "#3388ff",
-            weight: 1,
-            opacity: 0.7,
-            fillOpacity: 0.2
+    // Función para asignar color según la cantidad
+    function getColor(cantidad) {
+      return cantidad > 100 ? '#800026' :
+             cantidad > 50  ? '#BD0026' :
+             cantidad > 20  ? '#E31A1C' :
+             cantidad > 10  ? '#FC4E2A' :
+             cantidad > 5   ? '#FD8D3C' :
+             cantidad > 0   ? '#FEB24C' :
+                              '#FFEDA0';
+    }
+
+    // URL del CSV de Google Sheets
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWcGhezTvJ1A5viAbLHVEJRWwrK5_yFcNopFOCNVj4aIYoP5qQLXbpZ-ydft5OmY3HTvmddvnPD/pub?gid=0&single=true&output=csv';
+
+    Papa.parse(sheetUrl, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const data = results.data;
+
+        // Crear mapa { MpCodigo: Cantidad }
+        const cantidadMap = {};
+        data.forEach(row => {
+          const codigo = row['MpCodigo']?.trim();
+          const cantidad = parseFloat(row['Cantidad']);
+          if (codigo && !isNaN(cantidad)) {
+            cantidadMap[codigo] = cantidad;
           }
-        }).addTo(map);
-      })
-      .catch(error => {
-        console.error("Error cargando el GeoJSON:", error);
-      });
+        });
+
+        // Cargar el GeoJSON y aplicar estilo según cantidad
+        fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
+          .then(res => res.json())
+          .then(geojson => {
+            L.geoJSON(geojson, {
+              style: feature => {
+                const codigo = feature.properties?.MpCodigo?.toString().trim();
+                const cantidad = cantidadMap[codigo] || 0;
+                return {
+                  fillColor: getColor(cantidad),
+                  weight: 1,
+                  opacity: 1,
+                  color: 'white',
+                  fillOpacity: 0.7
+                };
+              },
+              onEachFeature: (feature, layer) => {
+                const codigo = feature.properties?.MpCodigo?.toString().trim();
+                const cantidad = cantidadMap[codigo] || 0;
+                const nombre = feature.properties?.NOMBRE || 'Municipio sin nombre';
+                layer.bindPopup(`<strong>${nombre}</strong><br>Cantidad: ${cantidad}`);
+              }
+            }).addTo(map);
+          });
+      }
+    });
   </script>
 </body>
 </html>
