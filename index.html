@@ -4,81 +4,38 @@
   <meta charset="utf-8" />
   <title>Mapa de Municipios</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Estilos de Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     #map { height: 100vh; }
   </style>
 </head>
 <body>
+  <div id="map"></div>
 
-<div id="map"></div>
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-<!-- Leaflet.js -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Tabletop.js -->
+  <script src="https://unpkg.com/tabletop@1.5.4/tabletop.js"></script>
 
-<script>
-  const map = L.map('map').setView([40.4168, -3.7038], 6); // Centrado en España
+  <script>
+    const MAPA = L.map('map').setView([40.4168, -3.7038], 6); // España
 
-  const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(MAPA);
 
-  const sheetURL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1742319415&single=true&output=csv';
+    const GEOJSON_URL = "https://www.dropbox.com/scl/fi/gruvtljv2xaa2w9gscph9/Municipios.geojson?rlkey=3yz7irw3zwb4qpm5ijb83m0q3&st=kbt8i9tz&raw=1";
+    const SHEET_ID = "1ivoSIHBfq8mdz2GWvH2d_vD45GuY9lISSTIFblVwtSM";
 
-  function getColor(valor) {
-    return valor > 100 ? '#800026' :
-           valor > 50  ? '#BD0026' :
-           valor > 20  ? '#E31A1C' :
-           valor > 10  ? '#FC4E2A' :
-           valor > 0   ? '#FD8D3C' :
-                         '#FFEDA0';
-  }
+    Tabletop.init({
+      key: SHEET_ID,
+      wanted: ["Municipios"],
+      simpleSheet: true,
+      callback: function(sheetData) {
+        const datos = {};
+        sheetData.forEach(row => {
+          datos[row.municipio_id] = +row.Cantidad;
+        });
 
-  async function cargarDatosYActualizar() {
-    const res = await fetch(sheetURL);
-    const csvText = await res.text();
-
-    const rows = csvText.split('\n').slice(1).map(line => {
-      const [id, nombre, valor] = line.split(',');
-      return { id: id.trim(), nombre: nombre.trim(), valor: parseFloat(valor) };
-    });
-
-    const dataMap = {};
-    rows.forEach(row => {
-      dataMap[row.id] = row;
-    });
-
-    const geoRes = await fetch('https://www.dropbox.com/scl/fi/celc6xwmbo4qo57sjgo4k/Municipios.geojson?rlkey=crt8cnlz4vta12zg9epfn8s22&st=yhvcrxwk&dl=1');
-    const geojson = await geoRes.json();
-
-    L.geoJSON(geojson, {
-      style: feature => {
-        const id = feature.properties.municipio_id || feature.properties.cvegeo || feature.properties.CODIGOINE;
-        const data = dataMap[id];
-        const valor = data ? data.valor : 0;
-
-        return {
-          fillColor: getColor(valor),
-          color: 'white',
-          weight: 1,
-          fillOpacity: 0.7
-        };
-      },
-      onEachFeature: (feature, layer) => {
-        const id = feature.properties.municipio_id || feature.properties.cvegeo || feature.properties.CODIGOINE;
-        const data = dataMap[id];
-        const nombre = data ? data.nombre : 'Sin nombre';
-        const valor = data ? data.valor : 'Sin valor';
-
-        layer.bindPopup(`<strong>${nombre}</strong><br>Valor: ${valor}`);
-      }
-    }).addTo(map);
-  }
-
-  cargarDatosYActualizar();
-</script>
-
-</body>
-</html>
+        fetch(G
