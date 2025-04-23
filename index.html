@@ -30,12 +30,13 @@
 
     Tabletop.init({
       key: SHEET_ID,
-      wanted: ["Municipios"],
+      wanted: ["Mapa"],
       simpleSheet: true,
       callback: function(sheetData) {
         const datos = {};
         sheetData.forEach(row => {
-          datos[row.municipio_id] = +row.Cantidad;
+          datos[row.MpCodigo] = +row.Cantidad;
         });
 
-        fetch(G
+        fetch(GEOJSON_URL)
+          .then(res => res.json())
