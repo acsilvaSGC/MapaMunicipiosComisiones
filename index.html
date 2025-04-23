@@ -1,96 +1,106 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Mapa Coroplético por Municipio</title>
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
+  <title>Mapa de Municipios - Comisiones</title>
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- PapaParse para leer Google Sheets CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
+
   <style>
-    #map { height: 100vh; }
+    html, body { height: 100%; margin: 0; }
+    #map { width: 100%; height: 100vh; }
   </style>
 </head>
 <body>
-
   <div id="map"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
-
   <script>
-    const map = L.map('map').setView([4.5709, -74.2973], 6); // Colombia centrado
+    const map = L.map('map').setView([4.5709, -74.2973], 6);
 
-    // Mapa base estilo gris
-    L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap, &copy; Stadia Maps'
-    }).addTo(map);
+    // Capa base de OpenStreetMap
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
 
-    // Leer MpCodigo desde la URL
-    function getQueryParam(param) {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get(param);
-    }
-    const MpCodigoFiltrado = getQueryParam('MpCodigo');
-
-    const csvURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv";
-    const geojsonURL = "https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson";
-
-    function getColor(d) {
-      return d > 100 ? '#800026' :
-             d > 50  ? '#BD0026' :
-             d > 20  ? '#E31A1C' :
-             d > 10  ? '#FC4E2A' :
-             d > 0   ? '#FD8D3C' :
-                       '#FFEDA0';
+    // Función para asignar color según la cantidad
+    function getColor(cantidad) {
+      return cantidad > 50 ? '#800026' :
+             cantidad > 20  ? '#BD0026' :
+             cantidad > 10  ? '#E31A1C' :
+             cantidad > 5  ? '#FC4E2A' :
+             cantidad > 1   ? '#FD8D3C' :
+             cantidad > 0   ? '#FEB24C' :
+                              '#dff8bf';
     }
 
-    fetch(csvURL)
-      .then(res => res.text())
-      .then(csv => {
-        const data = Papa.parse(csv, { header: true }).data;
+    // URL del CSV de Google Sheets
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
+const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
 
+Papa.parse(noCacheUrl, {
+  download: true,
+  header: true,
+  complete: function(results) {
+    const data = results.data;
+    // tu lógica para mapear y colorear
+  }
+});
+
+    Papa.parse(sheetUrl, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const data = results.data;
+
+        // Crear mapa { MpCodigo: Cantidad }
         const cantidadMap = {};
         data.forEach(row => {
-          const codigo = row.MpCodigo?.toString().trim();
-          const cantidad = parseFloat(row.Cantidad);
+          const codigo = row['MpCodigo']?.trim();
+          const cantidad = parseFloat(row['Cantidad']);
           if (codigo && !isNaN(cantidad)) {
             cantidadMap[codigo] = cantidad;
           }
         });
 
-        fetch(geojsonURL)
+        // Cargar el GeoJSON y aplicar estilo según cantidad
+        fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
           .then(geojson => {
             L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const valor = cantidadMap[codigo] || 0;
+                const cantidad = cantidadMap[codigo] || 0;
                 return {
-                  fillColor: getColor(valor),
+                  fillColor: getColor(cantidad),
                   weight: 1,
-                  color: "#333",
+                  opacity: 1,
+                  color: 'white',
                   fillOpacity: 0.7
                 };
               },
               onEachFeature: (feature, layer) => {
-                const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const nombre = feature.properties?.MpNombre || "Municipio sin nombre";
-                const cantidad = cantidadMap[codigo] || 0;
+            const codigo = feature.properties?.MpCodigo?.toString().trim();
+  const cantidad = cantidadMap[codigo] || 0;
+  const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
+  layer.bindPopup(`
+    <strong>${nombre}</strong><br>
+    Código: ${codigo}<br>
+    Cantidad: ${cantidad}
+  `);
+}
 
-                layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
-
-                // Zoom si coincide con el parámetro en la URL
-                if (codigo === MpCodigoFiltrado) {
-                  layer.once('add', () => {
-                    map.fitBounds(layer.getBounds());
-                    layer.openPopup(); // Mostrar popup
-                  });
-                }
-              }
             }).addTo(map);
           });
-      });
+      }
+    });
   </script>
-
 </body>
 </html>
