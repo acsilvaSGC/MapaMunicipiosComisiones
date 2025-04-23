@@ -7,16 +7,35 @@
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
   <style>
     #map { height: 100vh; }
+
+    .info.legend {
+      background: white;
+      padding: 10px;
+      line-height: 1.4em;
+      font-size: 14px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 5px;
+    }
+
+    .info.legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
   </style>
+
+  <!-- Leaflet JS (debe ir antes de cualquier uso de L.map) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
   <div id="map"></div>
 
-  <!-- Leaflet JS (esto es lo que faltaba) -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <!-- PapaParse para leer CSV -->
   <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
@@ -74,6 +93,28 @@
                 layer.bindPopup(`<b>${nombre}</b><br>Código: ${codigo}<br>Cantidad: ${valor}`);
               }
             }).addTo(map);
+
+            // Leyenda
+            const legend = L.control({ position: 'bottomright' });
+
+            legend.onAdd = function () {
+              const div = L.DomUtil.create('div', 'info legend');
+              const grades = [0, 10, 20, 50, 100];
+              const labels = [];
+
+              for (let i = 0; i < grades.length; i++) {
+                const from = grades[i];
+                const to = grades[i + 1];
+                labels.push(
+                  '<i style="background:' + getColor(from + 1) + '"></i> ' +
+                  from + (to ? '&ndash;' + to : '+'));
+              }
+
+              div.innerHTML = '<strong>Cantidad</strong><br>' + labels.join('<br>');
+              return div;
+            };
+
+            legend.addTo(map);
           })
           .catch(err => console.error("Error cargando GeoJSON:", err));
       })
