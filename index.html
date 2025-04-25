@@ -38,7 +38,7 @@
              cantidad > 5  ? '#FC4E2A' :
              cantidad > 1   ? '#FD8D3C' :
              cantidad > 0   ? '#FEB24C' :
-                              '#00FFFFFF';
+                              '#dff8bf';
     }
 
     // URL del CSV de Google Sheets
@@ -83,7 +83,7 @@ Papa.parse(noCacheUrl, {
                   weight: 1,
                   opacity: 1,
                   color: 'white',
-                  fillOpacity: 0.7
+                  fillOpacity: cantidad > 0 ? 0.7 : 0 
                 };
               },
               onEachFeature: (feature, layer) => {
