@@ -83,7 +83,7 @@ Papa.parse(noCacheUrl, {
                   weight: 1,
                   opacity: 1,
                   color: 'gray',
-                  fillOpacity: 0.7
+                  fillOpacity: cantidad > 0 ? 0.7 : 0
                 };
               },
               onEachFeature: (feature, layer) => {
