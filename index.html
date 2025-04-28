@@ -15,24 +15,19 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { width: 100%; height: 100vh; }
-    select {
+    #municipioSelect {
       position: absolute;
+      top: 10px;
       left: 10px;
       z-index: 1000;
       padding: 5px;
       font-size: 14px;
     }
-    #departamentoSelect { top: 10px; }
-    #municipioSelect { top: 50px; }
   </style>
 </head>
 <body>
 
-  <!-- Selectores -->
-  <select id="departamentoSelect">
-    <option value="">-- Selecciona un departamento --</option>
-  </select>
-
+  <!-- Selector de municipios -->
   <select id="municipioSelect">
     <option value="">-- Selecciona un municipio --</option>
   </select>
@@ -64,9 +59,7 @@
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
     const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
 
-    const layersPorCodigo = {}; // Guardar los layers por municipio
-    const municipiosData = [];  // Guardar info de municipios
-    const departamentosSet = new Set(); // Guardar nombres de departamentos únicos
+    const layersPorCodigo = {}; // Guardar los layers para buscarlos luego
 
     Papa.parse(noCacheUrl, {
       download: true,
@@ -89,6 +82,7 @@
           .then(res => res.json())
           .then(geojson => {
 
+            // Crear capa de municipios
             const geoLayer = L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
@@ -105,87 +99,43 @@
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
                 const cantidad = cantidadMap[codigo] || 0;
                 const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-                const departamento = feature.properties?.DpNombre || 'Departamento sin nombre';
 
                 layer.bindPopup(`
                   <strong>${nombre}</strong><br>
-                  Departamento: ${departamento}<br>
                   Código: ${codigo}<br>
                   Cantidad: ${cantidad}
                 `);
 
-                // Zoom al hacer clic en municipio
+                // Zoom al hacer clic en el municipio
                 layer.on('click', function () {
                   map.fitBounds(layer.getBounds());
                   layer.openPopup();
                 });
 
+                // Guardar el layer por código
                 if (codigo) {
                   layersPorCodigo[codigo] = layer;
-                  municipiosData.push({
-                    codigo: codigo,
-                    nombre: nombre,
-                    departamento: departamento
-                  });
-                  departamentosSet.add(departamento);
                 }
               }
             }).addTo(map);
 
-            // Poblar select de departamentos
-            const departamentoSelect = document.getElementById('departamentoSelect');
-            Array.from(departamentosSet).sort().forEach(dep => {
-              const option = document.createElement('option');
-              option.value = dep;
-              option.textContent = dep;
-              departamentoSelect.appendChild(option);
+            // Poblar el select con los municipios
+            const select = document.getElementById('municipioSelect');
+            geojson.features.forEach(feature => {
+              const codigo = feature.properties?.MpCodigo?.toString().trim();
+              const nombre = feature.properties?.MpNombre;
+              if (codigo && nombre) {
+                const option = document.createElement('option');
+                option.value = codigo;
+                option.textContent = nombre;
+                select.appendChild(option);
+              }
             });
-
-            // Poblar select de municipios
-            actualizarSelectMunicipios();
           });
       }
     });
 
-    // Función para actualizar municipios según departamento seleccionado
-    function actualizarSelectMunicipios(departamentoFiltrado = '') {
-      const municipioSelect = document.getElementById('municipioSelect');
-      municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
-
-      municipiosData.forEach(mun => {
-        if (!departamentoFiltrado || mun.departamento === departamentoFiltrado) {
-          const option = document.createElement('option');
-          option.value = mun.codigo;
-          option.textContent = mun.nombre;
-          municipioSelect.appendChild(option);
-        }
-      });
-    }
-
-    // Evento: Selección de Departamento
-    document.getElementById('departamentoSelect').addEventListener('change', function() {
-      const departamentoSeleccionado = this.value;
-
-      // Filtrar visibilidad de municipios
-      Object.values(layersPorCodigo).forEach(layer => {
-        const depLayer = layer.feature?.properties?.DpNombre;
-        if (!departamentoSeleccionado || depLayer === departamentoSeleccionado) {
-          layer.setStyle({ fillOpacity: 0.7, opacity: 1 });
-        } else {
-          layer.setStyle({ fillOpacity: 0, opacity: 0 });
-        }
-      });
-
-      // Actualizar municipios disponibles
-      actualizarSelectMunicipios(departamentoSeleccionado);
-
-      // Reset vista si no hay departamento
-      if (!departamentoSeleccionado) {
-        map.setView([4.5709, -74.2973], 6);
-      }
-    });
-
-    // Evento: Selección de Municipio
+    // Evento al cambiar el municipio desde el select
     document.getElementById('municipioSelect').addEventListener('change', function() {
       const codigoSeleccionado = this.value;
       if (layersPorCodigo[codigoSeleccionado]) {
@@ -194,7 +144,6 @@
         layer.openPopup();
       }
     });
-
   </script>
 </body>
 </html>
