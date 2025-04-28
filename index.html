@@ -1,149 +1,159 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapa de Municipios - Comisiones</title>
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- PapaParse para leer Google Sheets CSV -->
+  <!-- PapaParse -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
     html, body { height: 100%; margin: 0; }
-    #map { width: 100%; height: 100vh; }
-    #municipioSelect {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 1000;
+    #map { width: 100%; height: 95vh; }
+    #controls {
+      margin: 5px;
+    }
+    select {
       padding: 5px;
-      font-size: 14px;
+      margin-right: 10px;
     }
   </style>
 </head>
 <body>
 
-  <!-- Selector de municipios -->
+<div id="controls">
   <select id="municipioSelect">
-    <option value="">-- Selecciona un municipio --</option>
+    <option value="">-- Selecciona un Municipio --</option>
   </select>
+</div>
 
-  <!-- Mapa -->
-  <div id="map"></div>
+<div id="map"></div>
 
-  <script>
-    const map = L.map('map').setView([4.5709, -74.2973], 6);
+<script>
+  const map = L.map('map').setView([4.5709, -74.2973], 6);
 
-    // Capa base de OpenStreetMap
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
 
-    // Función para asignar color según la cantidad
-    function getColor(cantidad) {
-      return cantidad > 50 ? '#800026' :
-             cantidad > 20 ? '#BD0026' :
-             cantidad > 10 ? '#E31A1C' :
-             cantidad > 5  ? '#FC4E2A' :
-             cantidad > 1  ? '#FD8D3C' :
-             cantidad > 0  ? '#FEB24C' :
-                             '#dff8bf';
+  let geoLayer;
+  const allFeatures = [];
+
+  function getColor(cantidad) {
+    return cantidad > 50 ? '#800026' :
+           cantidad > 20 ? '#BD0026' :
+           cantidad > 10 ? '#E31A1C' :
+           cantidad > 5  ? '#FC4E2A' :
+           cantidad > 1  ? '#FD8D3C' :
+           cantidad > 0  ? '#FEB24C' :
+                           '#dff8bf';
+  }
+
+  function getUrlParameter(name) {
+    name = name.replace(/[\[\]]/g, '\\$&');
+    const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+    const results = regex.exec(window.location.href);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+  }
+
+  const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
+  const geojsonUrl = 'https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson';
+
+  let cantidadMap = {};
+
+  Papa.parse(sheetUrl + '&timestamp=' + new Date().getTime(), {
+    download: true,
+    header: true,
+    complete: function(results) {
+      const data = results.data;
+      data.forEach(row => {
+        const codigo = row['MpCodigo']?.trim();
+        const cantidad = parseFloat(row['Cantidad']);
+        if (codigo && !isNaN(cantidad)) {
+          cantidadMap[codigo] = cantidad;
+        }
+      });
+
+      loadGeoJSON();
     }
+  });
 
-    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
-    const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
+  function loadGeoJSON() {
+    fetch(geojsonUrl)
+      .then(res => res.json())
+      .then(geojson => {
+        geoLayer = L.geoJSON(geojson, {
+          style: feature => {
+            const codigo = feature.properties?.MpCodigo?.toString().trim();
+            const cantidad = cantidadMap[codigo] || 0;
+            return {
+              fillColor: getColor(cantidad),
+              weight: 1,
+              color: 'lightgray',
+              fillOpacity: cantidad > 0 ? 0.7 : 0
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const codigo = feature.properties?.MpCodigo?.toString().trim();
+            const cantidad = cantidadMap[codigo] || 0;
+            const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
 
-    const layersPorCodigo = {}; // Guardar los layers para buscarlos luego
+            layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
 
-    Papa.parse(noCacheUrl, {
-      download: true,
-      header: true,
-      complete: function(results) {
-        const data = results.data;
-
-        // Crear mapa { MpCodigo: Cantidad }
-        const cantidadMap = {};
-        data.forEach(row => {
-          const codigo = row['MpCodigo']?.trim();
-          const cantidad = parseFloat(row['Cantidad']);
-          if (codigo && !isNaN(cantidad)) {
-            cantidadMap[codigo] = cantidad;
-          }
-        });
-
-        // Cargar el GeoJSON y aplicar estilo
-        fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
-          .then(res => res.json())
-          .then(geojson => {
-
-            // Crear capa de municipios
-            const geoLayer = L.geoJSON(geojson, {
-              style: feature => {
-                const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const cantidad = cantidadMap[codigo] || 0;
-                return {
-                  fillColor: getColor(cantidad),
-                  weight: 1,
-                  opacity: 1,
-                  color: 'lightgray',
-                  fillOpacity: cantidad > 0 ? 0.7 : 0
-                };
-              },
-              onEachFeature: (feature, layer) => {
-                const codigo = feature.properties?.MpCodigo?.toString().trim();
-                const cantidad = cantidadMap[codigo] || 0;
-                const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-
-                layer.bindPopup(`
-                  <strong>${nombre}</strong><br>
-                  Código: ${codigo}<br>
-                  Cantidad: ${cantidad}
-                `);
-
-                // Zoom al hacer clic en el municipio
-                layer.on('click', function () {
-                  map.fitBounds(layer.getBounds());
-                  layer.openPopup();
-                });
-
-                // Guardar el layer por código
-                if (codigo) {
-                  layersPorCodigo[codigo] = layer;
-                }
-              }
-            }).addTo(map);
-
-            // Poblar el select con los municipios
-            const select = document.getElementById('municipioSelect');
-            geojson.features.forEach(feature => {
-              const codigo = feature.properties?.MpCodigo?.toString().trim();
-              const nombre = feature.properties?.MpNombre;
-              if (codigo && nombre) {
-                const option = document.createElement('option');
-                option.value = codigo;
-                option.textContent = nombre;
-                select.appendChild(option);
-              }
+            layer.on('click', () => {
+              map.fitBounds(layer.getBounds());
             });
-          });
-      }
-    });
 
-    // Evento al cambiar el municipio desde el select
-    document.getElementById('municipioSelect').addEventListener('change', function() {
-      const codigoSeleccionado = this.value;
-      if (layersPorCodigo[codigoSeleccionado]) {
-        const layer = layersPorCodigo[codigoSeleccionado];
-        map.fitBounds(layer.getBounds());
-        layer.openPopup();
-      }
+            allFeatures.push({
+              layer,
+              municipio: nombre
+            });
+          }
+        }).addTo(map);
+
+        populateMunicipios();
+        applyInitialFilters();
+      });
+  }
+
+  function populateMunicipios() {
+    const municipioSelect = document.getElementById('municipioSelect');
+    const municipios = [...new Set(allFeatures.map(f => f.municipio))].sort();
+    municipios.forEach(mun => {
+      const option = document.createElement('option');
+      option.value = mun;
+      option.textContent = mun;
+      municipioSelect.appendChild(option);
     });
-  </script>
+  }
+
+  document.getElementById('municipioSelect').addEventListener('change', function() {
+    const municipio = this.value;
+    const found = allFeatures.find(f => f.municipio === municipio);
+    if (found) {
+      map.fitBounds(found.layer.getBounds());
+      found.layer.openPopup();
+    }
+  });
+
+  function applyInitialFilters() {
+    const municipioSeleccionado = getUrlParameter('municipio');
+    if (municipioSeleccionado) {
+      const munSelect = document.getElementById('municipioSelect');
+      munSelect.value = municipioSeleccionado;
+      munSelect.dispatchEvent(new Event('change'));
+    }
+  }
+</script>
+
 </body>
 </html>
