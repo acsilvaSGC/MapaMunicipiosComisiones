@@ -15,47 +15,53 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { width: 100%; height: 100vh; }
+    #municipioSelect {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      padding: 5px;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Selector de municipios -->
+  <select id="municipioSelect">
+    <option value="">-- Selecciona un municipio --</option>
+  </select>
+
+  <!-- Mapa -->
   <div id="map"></div>
 
   <script>
     const map = L.map('map').setView([4.5709, -74.2973], 6);
 
     // Capa base de OpenStreetMap
-     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-  subdomains: 'abcd',
-  maxZoom: 19
-}).addTo(map);
-
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
     // Función para asignar color según la cantidad
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
-             cantidad > 20  ? '#BD0026' :
-             cantidad > 10  ? '#E31A1C' :
+             cantidad > 20 ? '#BD0026' :
+             cantidad > 10 ? '#E31A1C' :
              cantidad > 5  ? '#FC4E2A' :
-             cantidad > 1   ? '#FD8D3C' :
-             cantidad > 0   ? '#FEB24C' :
-                              '#dff8bf';
+             cantidad > 1  ? '#FD8D3C' :
+             cantidad > 0  ? '#FEB24C' :
+                             '#dff8bf';
     }
 
-    // URL del CSV de Google Sheets
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
-const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
+    const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
 
-Papa.parse(noCacheUrl, {
-  download: true,
-  header: true,
-  complete: function(results) {
-    const data = results.data;
-    // tu lógica para mapear y colorear
-  }
-});
+    const layersPorCodigo = {}; // Guardar los layers para buscarlos luego
 
-    Papa.parse(sheetUrl, {
+    Papa.parse(noCacheUrl, {
       download: true,
       header: true,
       complete: function(results) {
@@ -71,11 +77,13 @@ Papa.parse(noCacheUrl, {
           }
         });
 
-        // Cargar el GeoJSON y aplicar estilo según cantidad
+        // Cargar el GeoJSON y aplicar estilo
         fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
           .then(geojson => {
-            L.geoJSON(geojson, {
+
+            // Crear capa de municipios
+            const geoLayer = L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
                 const cantidad = cantidadMap[codigo] || 0;
@@ -83,23 +91,57 @@ Papa.parse(noCacheUrl, {
                   fillColor: getColor(cantidad),
                   weight: 1,
                   opacity: 1,
-                  color: 'light gray',
+                  color: 'lightgray',
                   fillOpacity: cantidad > 0 ? 0.7 : 0
                 };
               },
               onEachFeature: (feature, layer) => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-  const cantidad = cantidadMap[codigo] || 0;
-  const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-  layer.bindPopup(`
-    <strong>${nombre}</strong><br>
-    Código: ${codigo}<br>
-    Cantidad: ${cantidad}
-  `);
-}
+                const codigo = feature.properties?.MpCodigo?.toString().trim();
+                const cantidad = cantidadMap[codigo] || 0;
+                const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
 
+                layer.bindPopup(`
+                  <strong>${nombre}</strong><br>
+                  Código: ${codigo}<br>
+                  Cantidad: ${cantidad}
+                `);
+
+                // Zoom al hacer clic en el municipio
+                layer.on('click', function () {
+                  map.fitBounds(layer.getBounds());
+                  layer.openPopup();
+                });
+
+                // Guardar el layer por código
+                if (codigo) {
+                  layersPorCodigo[codigo] = layer;
+                }
+              }
             }).addTo(map);
+
+            // Poblar el select con los municipios
+            const select = document.getElementById('municipioSelect');
+            geojson.features.forEach(feature => {
+              const codigo = feature.properties?.MpCodigo?.toString().trim();
+              const nombre = feature.properties?.MpNombre;
+              if (codigo && nombre) {
+                const option = document.createElement('option');
+                option.value = codigo;
+                option.textContent = nombre;
+                select.appendChild(option);
+              }
+            });
           });
+      }
+    });
+
+    // Evento al cambiar el municipio desde el select
+    document.getElementById('municipioSelect').addEventListener('change', function() {
+      const codigoSeleccionado = this.value;
+      if (layersPorCodigo[codigoSeleccionado]) {
+        const layer = layersPorCodigo[codigoSeleccionado];
+        map.fitBounds(layer.getBounds());
+        layer.openPopup();
       }
     });
   </script>
