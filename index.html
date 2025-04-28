@@ -1,159 +1,116 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapa de Municipios - Comisiones</title>
 
-  <!-- Leaflet -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- PapaParse -->
+  <!-- PapaParse para leer Google Sheets CSV -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
     html, body { height: 100%; margin: 0; }
-    #map { width: 100%; height: 95vh; }
-    #controls {
-      margin: 5px;
-    }
-    select {
-      padding: 5px;
-      margin-right: 10px;
-    }
+    #map { width: 100%; height: 100vh; }
   </style>
 </head>
 <body>
+  <div id="map"></div>
 
-<div id="controls">
-  <select id="municipioSelect">
-    <option value="">-- Selecciona un Municipio --</option>
-  </select>
-</div>
-
-<div id="map"></div>
-
-<script>
-  const map = L.map('map').setView([4.5709, -74.2973], 6);
-
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
-
-  let geoLayer;
-  const allFeatures = [];
-
-  function getColor(cantidad) {
-    return cantidad > 50 ? '#800026' :
-           cantidad > 20 ? '#BD0026' :
-           cantidad > 10 ? '#E31A1C' :
-           cantidad > 5  ? '#FC4E2A' :
-           cantidad > 1  ? '#FD8D3C' :
-           cantidad > 0  ? '#FEB24C' :
-                           '#dff8bf';
-  }
-
-  function getUrlParameter(name) {
-    name = name.replace(/[\[\]]/g, '\\$&');
-    const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
-    const results = regex.exec(window.location.href);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
-  }
-
-  const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
-  const geojsonUrl = 'https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson';
-
-  let cantidadMap = {};
-
-  Papa.parse(sheetUrl + '&timestamp=' + new Date().getTime(), {
-    download: true,
-    header: true,
-    complete: function(results) {
-      const data = results.data;
-      data.forEach(row => {
-        const codigo = row['MpCodigo']?.trim();
-        const cantidad = parseFloat(row['Cantidad']);
-        if (codigo && !isNaN(cantidad)) {
-          cantidadMap[codigo] = cantidad;
-        }
-      });
-
-      loadGeoJSON();
+  <script>
+    // Función para leer parámetros de la URL
+    function getQueryParam(param) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(param);
     }
-  });
 
-  function loadGeoJSON() {
-    fetch(geojsonUrl)
-      .then(res => res.json())
-      .then(geojson => {
-        geoLayer = L.geoJSON(geojson, {
-          style: feature => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-            const cantidad = cantidadMap[codigo] || 0;
-            return {
-              fillColor: getColor(cantidad),
-              weight: 1,
-              color: 'lightgray',
-              fillOpacity: cantidad > 0 ? 0.7 : 0
-            };
-          },
-          onEachFeature: (feature, layer) => {
-            const codigo = feature.properties?.MpCodigo?.toString().trim();
-            const cantidad = cantidadMap[codigo] || 0;
-            const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
+    const selectedCodigo = getQueryParam('mpcodigo'); // Capturamos 'mpcodigo' de la URL
 
-            layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
+    const map = L.map('map').setView([4.5709, -74.2973], 6); // Vista inicial Colombia
 
-            layer.on('click', () => {
-              map.fitBounds(layer.getBounds());
-            });
+    // Capa base
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
-            allFeatures.push({
-              layer,
-              municipio: nombre
-            });
+    // Función de colores
+    function getColor(cantidad) {
+      return cantidad > 50 ? '#800026' :
+             cantidad > 20 ? '#BD0026' :
+             cantidad > 10 ? '#E31A1C' :
+             cantidad > 5  ? '#FC4E2A' :
+             cantidad > 1  ? '#FD8D3C' :
+             cantidad > 0  ? '#FEB24C' :
+                             '#dff8bf';
+    }
+
+    // URL de tu Google Sheets
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
+
+    Papa.parse(sheetUrl, {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const data = results.data;
+
+        const cantidadMap = {};
+        data.forEach(row => {
+          const codigo = row['MpCodigo']?.trim();
+          const cantidad = parseFloat(row['Cantidad']);
+          if (codigo && !isNaN(cantidad)) {
+            cantidadMap[codigo] = cantidad;
           }
-        }).addTo(map);
+        });
 
-        populateMunicipios();
-        applyInitialFilters();
-      });
-  }
+        fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
+          .then(res => res.json())
+          .then(geojson => {
+            const geojsonLayer = L.geoJSON(geojson, {
+              style: feature => {
+                const codigo = feature.properties?.MpCodigo?.toString().trim();
+                const cantidad = cantidadMap[codigo] || 0;
+                return {
+                  fillColor: getColor(cantidad),
+                  weight: 1,
+                  opacity: 1,
+                  color: 'lightgray',
+                  fillOpacity: cantidad > 0 ? 0.7 : 0
+                };
+              },
+              onEachFeature: (feature, layer) => {
+                const codigo = feature.properties?.MpCodigo?.toString().trim();
+                const cantidad = cantidadMap[codigo] || 0;
+                const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
 
-  function populateMunicipios() {
-    const municipioSelect = document.getElementById('municipioSelect');
-    const municipios = [...new Set(allFeatures.map(f => f.municipio))].sort();
-    municipios.forEach(mun => {
-      const option = document.createElement('option');
-      option.value = mun;
-      option.textContent = mun;
-      municipioSelect.appendChild(option);
+                layer.bindPopup(`
+                  <strong>${nombre}</strong><br>
+                  Código: ${codigo}<br>
+                  Cantidad: ${cantidad}
+                `);
+
+                // Zoom manual al hacer click en cualquier municipio
+                layer.on('click', () => {
+                  map.fitBounds(layer.getBounds());
+                  layer.openPopup();
+                });
+
+                // Zoom automático si hay un municipio en la URL
+                if (selectedCodigo && codigo === selectedCodigo) {
+                  layer.once('add', () => {
+                    map.fitBounds(layer.getBounds());
+                    layer.openPopup();
+                  });
+                }
+              }
+            }).addTo(map);
+          });
+      }
     });
-  }
-
-  document.getElementById('municipioSelect').addEventListener('change', function() {
-    const municipio = this.value;
-    const found = allFeatures.find(f => f.municipio === municipio);
-    if (found) {
-      map.fitBounds(found.layer.getBounds());
-      found.layer.openPopup();
-    }
-  });
-
-  function applyInitialFilters() {
-    const municipioSeleccionado = getUrlParameter('municipio');
-    if (municipioSeleccionado) {
-      const munSelect = document.getElementById('municipioSelect');
-      munSelect.value = municipioSeleccionado;
-      munSelect.dispatchEvent(new Event('change'));
-    }
-  }
-</script>
-
+  </script>
 </body>
 </html>
