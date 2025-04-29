@@ -5,11 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mapa de Municipios - Comisiones</title>
 
-  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- PapaParse para leer Google Sheets CSV -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
   <style>
@@ -28,7 +25,6 @@
 </head>
 <body>
 
-  <!-- Selectores -->
   <select id="departamentoSelect">
     <option value="">-- Selecciona un departamento --</option>
   </select>
@@ -37,20 +33,17 @@
     <option value="">-- Selecciona un municipio --</option>
   </select>
 
-  <!-- Mapa -->
   <div id="map"></div>
 
   <script>
     const map = L.map('map').setView([4.5709, -74.2973], 6);
 
-    // Capa base
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19
     }).addTo(map);
 
-    // Función color
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
              cantidad > 20 ? '#BD0026' :
@@ -58,22 +51,22 @@
              cantidad > 5  ? '#FC4E2A' :
              cantidad > 1  ? '#FD8D3C' :
              cantidad > 0  ? '#FEB24C' :
-                             '#dff8bf';
+                             '#cccccc'; // gris por defecto
     }
 
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
     const noCacheUrl = sheetUrl + '&timestamp=' + new Date().getTime();
 
-    const layersPorCodigo = {}; 
-    const municipiosData = [];  
-    const departamentosSet = new Set(); 
+    const layersPorCodigo = {};
+    const municipiosData = [];
+    const departamentosSet = new Set();
+    const departamentosBounds = {};
 
     Papa.parse(noCacheUrl, {
       download: true,
       header: true,
       complete: function(results) {
         const data = results.data;
-
         const cantidadMap = {};
         data.forEach(row => {
           const codigo = row['MpCodigo']?.trim();
@@ -86,7 +79,6 @@
         fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
           .then(geojson => {
-
             const geoLayer = L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
@@ -96,14 +88,14 @@
                   weight: 1,
                   opacity: 1,
                   color: 'lightgray',
-                  fillOpacity: cantidad > 0 ? 0.7 : 0
+                  fillOpacity: 0.5
                 };
               },
               onEachFeature: (feature, layer) => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
                 const cantidad = cantidadMap[codigo] || 0;
                 const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
-                const departamento = feature.properties?.Depto || 'Departamento sin nombre'; // <-- AQUÍ corregimos
+                const departamento = feature.properties?.Depto || 'Departamento sin nombre';
 
                 layer.bindPopup(`
                   <strong>${nombre}</strong><br>
@@ -112,7 +104,7 @@
                   Cantidad: ${cantidad}
                 `);
 
-                layer.on('click', function () {
+                layer.on('click', () => {
                   map.fitBounds(layer.getBounds());
                   layer.openPopup();
                 });
@@ -125,11 +117,15 @@
                     departamento: departamento
                   });
                   departamentosSet.add(departamento);
+
+                  if (!departamentosBounds[departamento]) {
+                    departamentosBounds[departamento] = L.latLngBounds();
+                  }
+                  departamentosBounds[departamento].extend(layer.getBounds());
                 }
               }
             }).addTo(map);
 
-            // Poblar select de departamentos
             const departamentoSelect = document.getElementById('departamentoSelect');
             Array.from(departamentosSet).sort().forEach(dep => {
               const option = document.createElement('option');
@@ -138,7 +134,6 @@
               departamentoSelect.appendChild(option);
             });
 
-            // Poblar select de municipios
             actualizarSelectMunicipios();
           });
       }
@@ -148,8 +143,10 @@
       const municipioSelect = document.getElementById('municipioSelect');
       municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
 
+      if (!departamentoFiltrado) return;
+
       municipiosData.forEach(mun => {
-        if (!departamentoFiltrado || mun.departamento === departamentoFiltrado) {
+        if (mun.departamento === departamentoFiltrado) {
           const option = document.createElement('option');
           option.value = mun.codigo;
           option.textContent = mun.nombre;
@@ -162,17 +159,19 @@
       const departamentoSeleccionado = this.value;
 
       Object.values(layersPorCodigo).forEach(layer => {
-        const depLayer = layer.feature?.properties?.Depto; // <-- AQUÍ corregimos
+        const depLayer = layer.feature?.properties?.Depto;
         if (!departamentoSeleccionado || depLayer === departamentoSeleccionado) {
-          layer.setStyle({ fillOpacity: 0.4, opacity: 1 });
+          layer.setStyle({ fillOpacity: 0.7, opacity: 1 });
         } else {
-          layer.setStyle({ fillOpacity: 0, opacity: 0 });
+          layer.setStyle({ fillOpacity: 0.1, opacity: 0.3 });
         }
       });
 
       actualizarSelectMunicipios(departamentoSeleccionado);
 
-      if (!departamentoSeleccionado) {
+      if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
+        map.fitBounds(departamentosBounds[departamentoSeleccionado]);
+      } else {
         map.setView([4.5709, -74.2973], 6);
       }
     });
@@ -185,7 +184,6 @@
         layer.openPopup();
       }
     });
-
   </script>
 </body>
 </html>
