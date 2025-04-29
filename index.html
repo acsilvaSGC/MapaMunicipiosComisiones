@@ -23,6 +23,16 @@
 
   #departamentoSelect { top: 10px; }
   #municipioSelect { top: 50px; }
+
+  .municipio-label {
+    font-size: 10px;
+    color: #000;
+    text-align: center;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
 </style>
 
 </head>
@@ -65,6 +75,7 @@
     const departamentosSet = new Set();
     const departamentosBounds = {};
     const labelLayers = [];
+    const labelsPorDepartamento = {};
 
     Papa.parse(noCacheUrl, {
       download: true,
@@ -127,15 +138,19 @@
                   }
                   departamentosBounds[departamento].extend(layer.getBounds());
 
-                  // Crear y guardar etiqueta
+                  // Crear y guardar etiqueta por departamento
                   const label = L.marker(layer.getBounds().getCenter(), {
                     icon: L.divIcon({
                       className: 'municipio-label',
                       html: nombre,
                       iconSize: null
                     })
-                  }).addTo(map);
-                  labelLayers.push(label);
+                  });
+
+                  if (!labelsPorDepartamento[departamento]) {
+                    labelsPorDepartamento[departamento] = [];
+                  }
+                  labelsPorDepartamento[departamento].push(label);
                 }
               }
             }).addTo(map);
@@ -172,6 +187,19 @@
       });
     }
 
+    function ocultarTodasLasEtiquetas() {
+      Object.values(labelsPorDepartamento).flat().forEach(label => {
+        map.removeLayer(label);
+      });
+    }
+
+    function mostrarEtiquetasDeDepartamento(dep) {
+      ocultarTodasLasEtiquetas();
+      if (labelsPorDepartamento[dep]) {
+        labelsPorDepartamento[dep].forEach(label => label.addTo(map));
+      }
+    }
+
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
 
@@ -188,8 +216,10 @@
 
       if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
         map.fitBounds(departamentosBounds[departamentoSeleccionado]);
+        mostrarEtiquetasDeDepartamento(departamentoSeleccionado);
       } else {
         map.setView([4.5709, -74.2973], 6);
+        ocultarTodasLasEtiquetas();
       }
     });
 
@@ -202,17 +232,5 @@
       }
     });
   </script>
-
-  <style>
-    .municipio-label {
-      font-size: 10px;
-      color: #000;
-      text-align: center;
-      white-space: nowrap;
-      background: rgba(255, 255, 255, 0.6);
-      padding: 2px 4px;
-      border-radius: 3px;
-    }
-  </style>
 </body>
 </html>
