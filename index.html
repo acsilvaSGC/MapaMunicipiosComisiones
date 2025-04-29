@@ -12,7 +12,7 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { width: 100%; height: 100vh; }
-    select {
+    select, button {
       position: absolute;
       right: 10px;
       z-index: 1000;
@@ -21,6 +21,7 @@
     }
     #departamentoSelect { top: 10px; }
     #municipioSelect { top: 50px; }
+    #resetZoom { top: 90px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -32,6 +33,8 @@
   <select id="municipioSelect">
     <option value="">-- Selecciona un municipio --</option>
   </select>
+
+  <button id="resetZoom">Quitar zoom</button>
 
   <div id="map"></div>
 
@@ -51,7 +54,7 @@
              cantidad > 5  ? '#FC4E2A' :
              cantidad > 1  ? '#FD8D3C' :
              cantidad > 0  ? '#FEB24C' :
-                             '#e9e9e9'; // gris por defecto
+                             '#e9e9e9';
     }
 
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
@@ -140,22 +143,22 @@
     });
 
     function actualizarSelectMunicipios(departamentoFiltrado = '') {
-  const municipioSelect = document.getElementById('municipioSelect');
-  municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
+      const municipioSelect = document.getElementById('municipioSelect');
+      municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
 
-  const municipiosFiltrados = municipiosData.filter(mun =>
-    !departamentoFiltrado || mun.departamento === departamentoFiltrado
-  );
+      const municipiosFiltrados = municipiosData.filter(mun =>
+        !departamentoFiltrado || mun.departamento === departamentoFiltrado
+      );
 
-  municipiosFiltrados
-    .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .forEach(mun => {
-      const option = document.createElement('option');
-      option.value = mun.codigo;
-      option.textContent = mun.nombre;
-      municipioSelect.appendChild(option);
-    });
-}
+      municipiosFiltrados
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(mun => {
+          const option = document.createElement('option');
+          option.value = mun.codigo;
+          option.textContent = mun.nombre;
+          municipioSelect.appendChild(option);
+        });
+    }
 
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
@@ -179,22 +182,34 @@
     });
 
     document.getElementById('municipioSelect').addEventListener('change', function() {
-  const codigoSeleccionado = this.value;
-  const departamentoSeleccionado = document.getElementById('departamentoSelect').value;
+      const codigoSeleccionado = this.value;
+      if (codigoSeleccionado === '') {
+        const departamentoSeleccionado = document.getElementById('departamentoSelect').value;
+        if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
+          map.fitBounds(departamentosBounds[departamentoSeleccionado]);
+        } else {
+          map.setView([4.5709, -74.2973], 6);
+        }
+        return;
+      }
 
-  if (!codigoSeleccionado && departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
-    // Si no hay municipio seleccionado pero sí un departamento, hacer zoom al departamento
-    map.fitBounds(departamentosBounds[departamentoSeleccionado]);
-    return;
-  }
+      if (layersPorCodigo[codigoSeleccionado]) {
+        const layer = layersPorCodigo[codigoSeleccionado];
+        map.fitBounds(layer.getBounds());
+        layer.openPopup();
+      }
+    });
 
-  if (layersPorCodigo[codigoSeleccionado]) {
-    const layer = layersPorCodigo[codigoSeleccionado];
-    map.fitBounds(layer.getBounds());
-    layer.openPopup();
-  }
-});
+    document.getElementById('resetZoom').addEventListener('click', function() {
+      map.setView([4.5709, -74.2973], 6);
 
+      Object.values(layersPorCodigo).forEach(layer => {
+        layer.setStyle({ fillOpacity: 0.5, opacity: 1 });
+      });
+
+      document.getElementById('departamentoSelect').value = '';
+      document.getElementById('municipioSelect').innerHTML = '<option value="">-- Selecciona un municipio --</option>';
+    });
   </script>
 </body>
 </html>
