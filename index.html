@@ -108,9 +108,23 @@
                 `);
 
                 layer.on('click', () => {
-                  map.fitBounds(layer.getBounds());
-                  layer.openPopup();
-                });
+  map.fitBounds(layer.getBounds());
+  layer.openPopup();
+
+  // Actualizar selects
+  const departamentoSelect = document.getElementById('departamentoSelect');
+  const municipioSelect = document.getElementById('municipioSelect');
+
+  // Seleccionar el departamento
+  departamentoSelect.value = departamento;
+  actualizarSelectMunicipios(departamento); // Actualiza la lista de municipios
+
+  // Esperar a que la lista se actualice y seleccionar el municipio
+  setTimeout(() => {
+    municipioSelect.value = codigo;
+  }, 0); // pequeño delay para asegurar que el DOM actualizó
+});
+
 
                 if (codigo) {
                   layersPorCodigo[codigo] = layer;
