@@ -221,8 +221,23 @@
     });
 
     document.getElementById('resetZoomBtn').addEventListener('click', () => {
-      map.setView([4.5709, -74.2973], 6);
-    });
+  map.setView([4.5709, -74.2973], 6);
+  ocultarTodasLasEtiquetas();
+
+  // Restablecer selects
+  document.getElementById('departamentoSelect').value = '';
+  document.getElementById('municipioSelect').value = '';
+  actualizarSelectMunicipios();
+
+  // Restablecer estilos de todos los municipios
+  Object.values(layersPorCodigo).forEach(layer => {
+    geoLayer.resetStyle(layer);
+    layer.setStyle({ fillOpacity: 0.7, opacity: 1 }); // restaurar opacidad
+  });
+
+  municipioSeleccionadoLayer = null;
+});
+
   </script>
 </body>
 </html>
