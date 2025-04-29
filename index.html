@@ -129,15 +129,19 @@
               }
             }).addTo(map);
 
-            const departamentoSelect = document.getElementById('departamentoSelect');
-            Array.from(departamentosSet).sort().forEach(dep => {
-              const option = document.createElement('option');
-              option.value = dep;
-              option.textContent = dep;
-              departamentoSelect.appendChild(option);
-            });
+         // Poblar select de departamentos ordenados alfabéticamente
+const departamentoSelect = document.getElementById('departamentoSelect');
+const departamentosOrdenados = Array.from(departamentosSet).sort((a, b) => a.localeCompare(b));
+departamentosOrdenados.forEach(dep => {
+  const option = document.createElement('option');
+  option.value = dep;
+  option.textContent = dep;
+  departamentoSelect.appendChild(option);
+});
 
-            actualizarSelectMunicipios();
+// Poblar select de municipios filtrados y ordenados
+actualizarSelectMunicipios();
+
           });
       }
     });
