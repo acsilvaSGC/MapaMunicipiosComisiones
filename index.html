@@ -24,16 +24,6 @@
   #departamentoSelect { top: 10px; }
   #municipioSelect { top: 50px; }
 
-  .municipio-label {
-    font-size: 10px;
-    color: #000;
-    text-align: center;
-    white-space: nowrap;
-    background: rgba(255, 255, 255, 0.6);
-    padding: 2px 4px;
-    border-radius: 3px;
-  }
-
   #resetZoomBtn {
     position: absolute;
     right: 10px;
@@ -100,8 +90,6 @@
     const municipiosData = [];
     const departamentosSet = new Set();
     const departamentosBounds = {};
-    const labelLayers = [];
-    const labelsPorDepartamento = {};
     let municipioSeleccionadoLayer = null;
     let geoLayer = null;
 
@@ -171,19 +159,6 @@
                     departamentosBounds[departamento] = L.latLngBounds();
                   }
                   departamentosBounds[departamento].extend(layer.getBounds());
-
-                  const label = L.marker(layer.getBounds().getCenter(), {
-                    icon: L.divIcon({
-                      className: 'municipio-label',
-                      html: nombre,
-                      iconSize: null
-                    })
-                  });
-
-                  if (!labelsPorDepartamento[departamento]) {
-                    labelsPorDepartamento[departamento] = [];
-                  }
-                  labelsPorDepartamento[departamento].push(label);
                 }
               }
             }).addTo(map);
@@ -220,19 +195,6 @@
         });
     }
 
-    function ocultarTodasLasEtiquetas() {
-      Object.values(labelsPorDepartamento).flat().forEach(label => {
-        map.removeLayer(label);
-      });
-    }
-
-    function mostrarEtiquetasDeDepartamento(dep) {
-      ocultarTodasLasEtiquetas();
-      if (labelsPorDepartamento[dep]) {
-        labelsPorDepartamento[dep].forEach(label => label.addTo(map));
-      }
-    }
-
     function resaltarMunicipioSeleccionado(layer) {
       if (municipioSeleccionadoLayer) {
         geoLayer.resetStyle(municipioSeleccionadoLayer);
@@ -261,10 +223,8 @@
 
       if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
         map.fitBounds(departamentosBounds[departamentoSeleccionado]);
-        mostrarEtiquetasDeDepartamento(departamentoSeleccionado);
       } else {
         map.setView([4.5709, -74.2973], 6);
-        ocultarTodasLasEtiquetas();
       }
     });
 
@@ -289,7 +249,6 @@
 
     document.getElementById('resetZoomBtn').addEventListener('click', () => {
       map.setView([4.5709, -74.2973], 6);
-      ocultarTodasLasEtiquetas();
 
       document.getElementById('departamentoSelect').value = '';
       document.getElementById('municipioSelect').value = '';
