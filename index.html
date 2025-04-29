@@ -23,6 +23,17 @@
 
   #departamentoSelect { top: 10px; }
   #municipioSelect { top: 50px; }
+  #resetZoomBtn {
+    position: absolute;
+    right: 10px;
+    top: 90px;
+    z-index: 1000;
+    padding: 5px 10px;
+    font-size: 14px;
+    background-color: white;
+    border: 1px solid #ccc;
+    cursor: pointer;
+  }
 
   .municipio-label {
     font-size: 10px;
@@ -32,15 +43,6 @@
     background: rgba(255, 255, 255, 0.6);
     padding: 2px 4px;
     border-radius: 3px;
-  }
-
-  #resetZoomBtn {
-    position: absolute;
-    right: 10px;
-    top: 90px;
-    z-index: 1000;
-    padding: 5px 10px;
-    font-size: 14px;
   }
 </style>
 
@@ -87,8 +89,6 @@
     const departamentosBounds = {};
     const labelLayers = [];
     const labelsPorDepartamento = {};
-    let municipioSeleccionadoLayer = null;
-    let geoLayer = null;
 
     Papa.parse(noCacheUrl, {
       download: true,
@@ -107,7 +107,7 @@
         fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
           .then(geojson => {
-            geoLayer = L.geoJSON(geojson, {
+            const geoLayer = L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
                 const cantidad = cantidadMap[codigo] || 0;
@@ -139,8 +139,6 @@
                   document.getElementById('departamentoSelect').value = departamento;
                   actualizarSelectMunicipios(departamento);
                   document.getElementById('municipioSelect').value = codigo;
-
-                  resaltarMunicipioSeleccionado(layer);
                 });
 
                 if (codigo) {
@@ -218,18 +216,6 @@
       }
     }
 
-    function resaltarMunicipioSeleccionado(layer) {
-      if (municipioSeleccionadoLayer) {
-        geoLayer.resetStyle(municipioSeleccionadoLayer);
-      }
-      layer.setStyle({
-        weight: 3,
-        color: '#000',
-        fillOpacity: 0.7
-      });
-      municipioSeleccionadoLayer = layer;
-    }
-
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
 
@@ -264,17 +250,24 @@
         }
         return;
       }
+
       if (layersPorCodigo[codigoSeleccionado]) {
         const layer = layersPorCodigo[codigoSeleccionado];
         map.fitBounds(layer.getBounds());
         layer.openPopup();
-        resaltarMunicipioSeleccionado(layer);
       }
     });
 
-    document.getElementById('resetZoomBtn').addEventListener('click', () => {
+    document.getElementById('resetZoomBtn').addEventListener('click', function() {
       map.setView([4.5709, -74.2973], 6);
+      document.getElementById('departamentoSelect').value = '';
+      document.getElementById('municipioSelect').value = '';
+      actualizarSelectMunicipios();
       ocultarTodasLasEtiquetas();
+
+      Object.values(layersPorCodigo).forEach(layer => {
+        layer.setStyle({ fillOpacity: 0.7, opacity: 1, color: 'lightgray' });
+      });
     });
   </script>
 </body>
