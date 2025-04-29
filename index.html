@@ -27,7 +27,7 @@
       return urlParams.get(param);
     }
 
-    const selectedCodigo = getQueryParam('mpcodigo'); // Capturamos 'mpcodigo' de la URL
+    const selectedCodigo = getQueryParam('mpcodigo');
 
     const map = L.map('map').setView([4.5709, -74.2973], 6); // Vista inicial Colombia
 
@@ -38,7 +38,6 @@
       maxZoom: 19
     }).addTo(map);
 
-    // Función de colores
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
              cantidad > 20 ? '#BD0026' :
@@ -49,7 +48,6 @@
                              '#dff8bf';
     }
 
-    // URL de tu Google Sheets
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
 
     Papa.parse(sheetUrl, {
@@ -57,8 +55,8 @@
       header: true,
       complete: function(results) {
         const data = results.data;
-
         const cantidadMap = {};
+
         data.forEach(row => {
           const codigo = row['MpCodigo']?.trim();
           const cantidad = parseFloat(row['Cantidad']);
@@ -93,13 +91,11 @@
                   Cantidad: ${cantidad}
                 `);
 
-                // Zoom manual al hacer click en cualquier municipio
                 layer.on('click', () => {
                   map.fitBounds(layer.getBounds());
                   layer.openPopup();
                 });
 
-                // Zoom automático si hay un municipio en la URL
                 if (selectedCodigo && codigo === selectedCodigo) {
                   layer.once('add', () => {
                     map.fitBounds(layer.getBounds());
