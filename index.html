@@ -179,13 +179,22 @@
     });
 
     document.getElementById('municipioSelect').addEventListener('change', function() {
-      const codigoSeleccionado = this.value;
-      if (layersPorCodigo[codigoSeleccionado]) {
-        const layer = layersPorCodigo[codigoSeleccionado];
-        map.fitBounds(layer.getBounds());
-        layer.openPopup();
-      }
-    });
+  const codigoSeleccionado = this.value;
+  const departamentoSeleccionado = document.getElementById('departamentoSelect').value;
+
+  if (!codigoSeleccionado && departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
+    // Si no hay municipio seleccionado pero sí un departamento, hacer zoom al departamento
+    map.fitBounds(departamentosBounds[departamentoSeleccionado]);
+    return;
+  }
+
+  if (layersPorCodigo[codigoSeleccionado]) {
+    const layer = layersPorCodigo[codigoSeleccionado];
+    map.fitBounds(layer.getBounds());
+    layer.openPopup();
+  }
+});
+
   </script>
 </body>
 </html>
