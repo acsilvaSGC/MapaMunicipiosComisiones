@@ -15,17 +15,9 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { width: 100%; height: 100vh; }
-    .leaflet-top.leaflet-right {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin: 10px;
-    }
-    .control-container {
-      background: white;
-      padding: 8px;
-      border-radius: 6px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.3);
+    .leaflet-control select {
+      font-size: 14px;
+      padding: 2px;
     }
   </style>
 </head>
@@ -33,30 +25,28 @@
   <div id="map"></div>
 
   <script>
-    let geojsonLayer;
-    let baseLayers;
+    const selectedCodigo = new URLSearchParams(window.location.search).get('mpcodigo');
 
     const map = L.map('map').setView([4.5709, -74.2973], 6);
 
     // Capas base
-    const light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    });
-
-    const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://stamen.com">Stamen Design</a>',
-      maxZoom: 20
-    });
-
-    baseLayers = {
-      "Claro (CartoDB)": light,
-      "Alto Contraste (Stamen Toner)": toner
+    const baseMaps = {
+      "Carto Light": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>', subdomains: 'abcd', maxZoom: 19
+      }),
+      "OpenStreetMap": L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }),
+      "Stamen Toner": L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+        attribution: '&copy; Stamen Design'
+      })
     };
 
-    light.addTo(map);
-    L.control.layers(baseLayers).addTo(map);
+    // Agregar capa base por defecto
+    baseMaps["Carto Light"].addTo(map);
+
+    // Control de capas
+    L.control.layers(baseMaps).addTo(map);
 
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
@@ -64,77 +54,122 @@
              cantidad > 10 ? '#E31A1C' :
              cantidad > 5  ? '#FC4E2A' :
              cantidad > 1  ? '#FD8D3C' :
-             cantidad > 0  ? '#FEB24C' :
-                             '#ffffff00'; // transparente
+             cantidad > 0  ? '#FEB24C' : 'transparent';
     }
 
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
+
+    let geojsonLayer;
+    let cantidadMap = {};
+    let geojsonData;
+    let selectedDepartamento = "";
+
+    function renderGeoJSON() {
+      if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+      geojsonLayer = L.geoJSON(geojsonData, {
+        filter: feature => {
+          if (!selectedDepartamento) return true;
+          return feature.properties?.DptoNombre === selectedDepartamento;
+        },
+        style: feature => {
+          const codigo = feature.properties?.MpCodigo?.toString().trim();
+          const cantidad = cantidadMap[codigo] || 0;
+          return {
+            fillColor: getColor(cantidad),
+            weight: 1,
+            opacity: 1,
+            color: 'lightgray',
+            fillOpacity: cantidad > 0 ? 0.7 : 0
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          const codigo = feature.properties?.MpCodigo?.toString().trim();
+          const cantidad = cantidadMap[codigo] || 0;
+          const nombre = feature.properties?.MpNombre || 'Municipio sin nombre';
+
+          layer.bindPopup(`
+            <strong>${nombre}</strong><br>
+            Código: ${codigo}<br>
+            Cantidad: ${cantidad}
+          `);
+
+          if (selectedCodigo && codigo === selectedCodigo) {
+            layer.once('add', () => {
+              map.fitBounds(layer.getBounds());
+              layer.openPopup();
+            });
+          }
+
+          layer.on('click', () => {
+            map.fitBounds(layer.getBounds());
+            layer.openPopup();
+          });
+        }
+      }).addTo(map);
+    }
 
     Papa.parse(sheetUrl, {
       download: true,
       header: true,
       complete: function(results) {
-        const data = results.data;
-        const cantidadMap = {};
-        const departamentoMap = {};
-
-        data.forEach(row => {
+        results.data.forEach(row => {
           const codigo = row['MpCodigo']?.trim();
           const cantidad = parseFloat(row['Cantidad']);
-          const dpto = row['Departamento']?.trim();
           if (codigo && !isNaN(cantidad)) {
             cantidadMap[codigo] = cantidad;
-            departamentoMap[codigo] = dpto;
           }
         });
 
         fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
-          .then(geojson => {
-            function renderLayer(selectedDepto) {
-              if (geojsonLayer) geojsonLayer.remove();
-
-              geojsonLayer = L.geoJSON(geojson, {
-                filter: feature => {
-                  const codigo = feature.properties?.MpCodigo?.toString().trim();
-                  if (!selectedDepto) return true;
-                  return departamentoMap[codigo] === selectedDepto;
-                },
-                style: feature => {
-                  const codigo = feature.properties?.MpCodigo?.toString().trim();
-                  const cantidad = cantidadMap[codigo] || 0;
-                  return {
-                    fillColor: getColor(cantidad),
-                    weight: 1,
-                    opacity: 1,
-                    color: 'lightgray',
-                    fillOpacity: cantidad > 0 ? 0.7 : 0
-                  };
-                },
-                onEachFeature: (feature, layer) => {
-                  const codigo = feature.properties?.MpCodigo?.toString().trim();
-                  const cantidad = cantidadMap[codigo] || 0;
-                  const nombre = feature.properties?.MpNombre || 'Municipio';
-                  layer.bindPopup(`<strong>${nombre}</strong><br>Código: ${codigo}<br>Cantidad: ${cantidad}`);
-                }
-              }).addTo(map);
-            }
-
-            // Crear filtro por departamento
-            const deptos = [...new Set(Object.values(departamentoMap))].sort();
-            const select = L.DomUtil.create('select', 'control-container');
-            select.innerHTML = '<option value="">Todos los departamentos</option>' +
-              deptos.map(d => `<option value="${d}">${d}</option>`).join('');
-
-            L.control({position: 'topright'}).onAdd = () => select;
-            map.addControl(new L.Control({ position: 'topright' }));
-
-            select.addEventListener('change', () => renderLayer(select.value));
-
-            renderLayer(); // primera carga sin filtro
+          .then(json => {
+            geojsonData = json;
+            renderGeoJSON();
+            addDepartamentoSelector(json);
           });
       }
     });
+
+    // Control personalizado para filtro por departamento
+    const FiltroDepartamentos = L.Control.extend({
+      options: { position: 'topright' },
+
+      onAdd: function(map) {
+        const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+        const select = L.DomUtil.create('select', '', container);
+        select.innerHTML = `<option value="">Todos los departamentos</option>`;
+
+        // Obtener lista única de departamentos
+        const departamentos = new Set();
+        geojsonData.features.forEach(f => {
+          if (f.properties?.DptoNombre) {
+            departamentos.add(f.properties.DptoNombre);
+          }
+        });
+
+        [...departamentos].sort().forEach(dep => {
+          const option = document.createElement('option');
+          option.value = dep;
+          option.textContent = dep;
+          select.appendChild(option);
+        });
+
+        select.onmousedown = select.onclick = select.onwheel = L.DomEvent.stopPropagation;
+
+        select.addEventListener('change', function () {
+          selectedDepartamento = this.value;
+          renderGeoJSON();
+        });
+
+        return container;
+      },
+
+      onRemove: function(map) {}
+    });
+
+    // Agregar control
+    map.addControl(new FiltroDepartamentos());
   </script>
 </body>
 </html>
