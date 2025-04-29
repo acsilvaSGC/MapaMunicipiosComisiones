@@ -15,7 +15,7 @@
 
   select {
     position: absolute;
-    right: 10px; /* <-- Cambiado de 'left' a 'right' */
+    right: 10px;
     z-index: 1000;
     padding: 5px;
     font-size: 14px;
@@ -54,7 +54,7 @@
              cantidad > 5  ? '#FC4E2A' :
              cantidad > 1  ? '#FD8D3C' :
              cantidad > 0  ? '#FEB24C' :
-                             '#e9e9e9'; // gris por defecto
+                             '#e9e9e9';
     }
 
     const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQm6uWCgHezTvJIA5viAbLHX1TH-a8e4qTiCUUH7OLeySx3actL2wzCRX_zp7cIcjOdRUZu4sJUe0_D/pub?gid=1758050710&single=true&output=csv';
@@ -64,6 +64,7 @@
     const municipiosData = [];
     const departamentosSet = new Set();
     const departamentosBounds = {};
+    const labelLayers = [];
 
     Papa.parse(noCacheUrl, {
       download: true,
@@ -125,44 +126,51 @@
                     departamentosBounds[departamento] = L.latLngBounds();
                   }
                   departamentosBounds[departamento].extend(layer.getBounds());
+
+                  // Crear y guardar etiqueta
+                  const label = L.marker(layer.getBounds().getCenter(), {
+                    icon: L.divIcon({
+                      className: 'municipio-label',
+                      html: nombre,
+                      iconSize: null
+                    })
+                  }).addTo(map);
+                  labelLayers.push(label);
                 }
               }
             }).addTo(map);
 
-         // Poblar select de departamentos ordenados alfabéticamente
-const departamentoSelect = document.getElementById('departamentoSelect');
-const departamentosOrdenados = Array.from(departamentosSet).sort((a, b) => a.localeCompare(b));
-departamentosOrdenados.forEach(dep => {
-  const option = document.createElement('option');
-  option.value = dep;
-  option.textContent = dep;
-  departamentoSelect.appendChild(option);
-});
+            const departamentoSelect = document.getElementById('departamentoSelect');
+            const departamentosOrdenados = Array.from(departamentosSet).sort((a, b) => a.localeCompare(b));
+            departamentosOrdenados.forEach(dep => {
+              const option = document.createElement('option');
+              option.value = dep;
+              option.textContent = dep;
+              departamentoSelect.appendChild(option);
+            });
 
-// Poblar select de municipios filtrados y ordenados
-actualizarSelectMunicipios();
-
+            actualizarSelectMunicipios();
           });
       }
     });
 
-   function actualizarSelectMunicipios(departamentoFiltrado = '') {
-  const municipioSelect = document.getElementById('municipioSelect');
-  municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
+    function actualizarSelectMunicipios(departamentoFiltrado = '') {
+      const municipioSelect = document.getElementById('municipioSelect');
+      municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
 
-  if (!departamentoFiltrado) return;
+      if (!departamentoFiltrado) return;
 
-  const municipiosFiltrados = municipiosData
-    .filter(mun => mun.departamento === departamentoFiltrado)
-    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      const municipiosFiltrados = municipiosData
+        .filter(mun => mun.departamento === departamentoFiltrado)
+        .sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  municipiosFiltrados.forEach(mun => {
-    const option = document.createElement('option');
-    option.value = mun.codigo;
-    option.textContent = mun.nombre;
-    municipioSelect.appendChild(option);
-  });
-}
+      municipiosFiltrados.forEach(mun => {
+        const option = document.createElement('option');
+        option.value = mun.codigo;
+        option.textContent = mun.nombre;
+        municipioSelect.appendChild(option);
+      });
+    }
 
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
@@ -194,5 +202,17 @@ actualizarSelectMunicipios();
       }
     });
   </script>
+
+  <style>
+    .municipio-label {
+      font-size: 10px;
+      color: #000;
+      text-align: center;
+      white-space: nowrap;
+      background: rgba(255, 255, 255, 0.6);
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+  </style>
 </body>
 </html>
