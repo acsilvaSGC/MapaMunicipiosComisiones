@@ -164,7 +164,7 @@
       Object.values(layersPorCodigo).forEach(layer => {
         const depLayer = layer.feature?.properties?.Depto; // <-- AQUÍ corregimos
         if (!departamentoSeleccionado || depLayer === departamentoSeleccionado) {
-          layer.setStyle({ fillOpacity: 0.7, opacity: 1 });
+          layer.setStyle({ fillOpacity: 0, opacity: 1 });
         } else {
           layer.setStyle({ fillOpacity: 0, opacity: 0 });
         }
