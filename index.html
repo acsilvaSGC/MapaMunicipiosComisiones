@@ -194,11 +194,37 @@
     }
 
     function mostrarEtiquetasDeDepartamento(dep) {
-      ocultarTodasLasEtiquetas();
-      if (labelsPorDepartamento[dep]) {
-        labelsPorDepartamento[dep].forEach(label => label.addTo(map));
+  ocultarTodasLasEtiquetas();
+  if (!labelsPorDepartamento[dep]) return;
+
+  labelsPorDepartamento[dep].forEach(label => {
+    const layer = Object.values(layersPorCodigo).find(l =>
+      l.feature?.properties?.Depto === dep &&
+      l.feature?.properties?.MpNombre === label.options.icon.options.html
+    );
+
+    if (layer) {
+      const bounds = layer.getBounds();
+      const nw = map.latLngToContainerPoint(bounds.getNorthWest());
+      const se = map.latLngToContainerPoint(bounds.getSouthEast());
+      const width = Math.abs(se.x - nw.x);
+
+      // Crear un span temporal para medir el texto
+      const span = document.createElement('span');
+      span.className = 'municipio-label';
+      span.style.position = 'absolute';
+      span.style.visibility = 'hidden';
+      span.textContent = label.options.icon.options.html;
+      document.body.appendChild(span);
+      const labelWidth = span.offsetWidth;
+      document.body.removeChild(span);
+
+      if (labelWidth < width) {
+        label.addTo(map);
       }
     }
+  });
+}
 
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
