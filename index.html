@@ -9,20 +9,41 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.2/papaparse.min.js"></script>
 
-  <style>
-    html, body { height: 100%; margin: 0; }
-    #map { width: 100%; height: 100vh; }
-    select, button {
-      position: absolute;
-      right: 10px;
-      z-index: 1000;
-      padding: 5px;
-      font-size: 14px;
-    }
-    #departamentoSelect { top: 10px; }
-    #municipioSelect { top: 50px; }
-    #resetZoom { top: 90px; cursor: pointer; }
-  </style>
+<style>
+  html, body { height: 100%; margin: 0; }
+  #map { width: 100%; height: 100vh; }
+
+  select {
+    position: absolute;
+    right: 10px;
+    z-index: 1000;
+    padding: 5px;
+    font-size: 14px;
+  }
+
+  #departamentoSelect { top: 10px; }
+  #municipioSelect { top: 50px; }
+
+  .municipio-label {
+    font-size: 10px;
+    color: #000;
+    text-align: center;
+    white-space: nowrap;
+    background: rgba(255, 255, 255, 0.6);
+    padding: 2px 4px;
+    border-radius: 3px;
+  }
+
+  #resetZoomBtn {
+    position: absolute;
+    right: 10px;
+    top: 90px;
+    z-index: 1000;
+    padding: 5px 10px;
+    font-size: 14px;
+  }
+</style>
+
 </head>
 <body>
 
@@ -34,7 +55,7 @@
     <option value="">-- Selecciona un municipio --</option>
   </select>
 
-  <button id="resetZoom">Quitar zoom</button>
+  <button id="resetZoomBtn">Quitar Zoom</button>
 
   <div id="map"></div>
 
@@ -64,6 +85,10 @@
     const municipiosData = [];
     const departamentosSet = new Set();
     const departamentosBounds = {};
+    const labelLayers = [];
+    const labelsPorDepartamento = {};
+    let municipioSeleccionadoLayer = null;
+    let geoLayer = null;
 
     Papa.parse(noCacheUrl, {
       download: true,
@@ -82,7 +107,7 @@
         fetch('https://acsilvasgc.github.io/MapaMunicipiosComisiones/Municipios.geojson')
           .then(res => res.json())
           .then(geojson => {
-            const geoLayer = L.geoJSON(geojson, {
+            geoLayer = L.geoJSON(geojson, {
               style: feature => {
                 const codigo = feature.properties?.MpCodigo?.toString().trim();
                 const cantidad = cantidadMap[codigo] || 0;
@@ -108,23 +133,15 @@
                 `);
 
                 layer.on('click', () => {
-  map.fitBounds(layer.getBounds());
-  layer.openPopup();
+                  map.fitBounds(layer.getBounds());
+                  layer.openPopup();
 
-  // Actualizar selects
-  const departamentoSelect = document.getElementById('departamentoSelect');
-  const municipioSelect = document.getElementById('municipioSelect');
+                  document.getElementById('departamentoSelect').value = departamento;
+                  actualizarSelectMunicipios(departamento);
+                  document.getElementById('municipioSelect').value = codigo;
 
-  // Seleccionar el departamento
-  departamentoSelect.value = departamento;
-  actualizarSelectMunicipios(departamento); // Actualiza la lista de municipios
-
-  // Esperar a que la lista se actualice y seleccionar el municipio
-  setTimeout(() => {
-    municipioSelect.value = codigo;
-  }, 0); // pequeño delay para asegurar que el DOM actualizó
-});
-
+                  resaltarMunicipioSeleccionado(layer);
+                });
 
                 if (codigo) {
                   layersPorCodigo[codigo] = layer;
@@ -139,12 +156,26 @@
                     departamentosBounds[departamento] = L.latLngBounds();
                   }
                   departamentosBounds[departamento].extend(layer.getBounds());
+
+                  const label = L.marker(layer.getBounds().getCenter(), {
+                    icon: L.divIcon({
+                      className: 'municipio-label',
+                      html: nombre,
+                      iconSize: null
+                    })
+                  });
+
+                  if (!labelsPorDepartamento[departamento]) {
+                    labelsPorDepartamento[departamento] = [];
+                  }
+                  labelsPorDepartamento[departamento].push(label);
                 }
               }
             }).addTo(map);
 
             const departamentoSelect = document.getElementById('departamentoSelect');
-            Array.from(departamentosSet).sort().forEach(dep => {
+            const departamentosOrdenados = Array.from(departamentosSet).sort((a, b) => a.localeCompare(b));
+            departamentosOrdenados.forEach(dep => {
               const option = document.createElement('option');
               option.value = dep;
               option.textContent = dep;
@@ -174,6 +205,31 @@
         });
     }
 
+    function ocultarTodasLasEtiquetas() {
+      Object.values(labelsPorDepartamento).flat().forEach(label => {
+        map.removeLayer(label);
+      });
+    }
+
+    function mostrarEtiquetasDeDepartamento(dep) {
+      ocultarTodasLasEtiquetas();
+      if (labelsPorDepartamento[dep]) {
+        labelsPorDepartamento[dep].forEach(label => label.addTo(map));
+      }
+    }
+
+    function resaltarMunicipioSeleccionado(layer) {
+      if (municipioSeleccionadoLayer) {
+        geoLayer.resetStyle(municipioSeleccionadoLayer);
+      }
+      layer.setStyle({
+        weight: 3,
+        color: '#000',
+        fillOpacity: 0.7
+      });
+      municipioSeleccionadoLayer = layer;
+    }
+
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
 
@@ -190,14 +246,16 @@
 
       if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
         map.fitBounds(departamentosBounds[departamentoSeleccionado]);
+        mostrarEtiquetasDeDepartamento(departamentoSeleccionado);
       } else {
         map.setView([4.5709, -74.2973], 6);
+        ocultarTodasLasEtiquetas();
       }
     });
 
     document.getElementById('municipioSelect').addEventListener('change', function() {
       const codigoSeleccionado = this.value;
-      if (codigoSeleccionado === '') {
+      if (!codigoSeleccionado) {
         const departamentoSeleccionado = document.getElementById('departamentoSelect').value;
         if (departamentoSeleccionado && departamentosBounds[departamentoSeleccionado]) {
           map.fitBounds(departamentosBounds[departamentoSeleccionado]);
@@ -206,23 +264,17 @@
         }
         return;
       }
-
       if (layersPorCodigo[codigoSeleccionado]) {
         const layer = layersPorCodigo[codigoSeleccionado];
         map.fitBounds(layer.getBounds());
         layer.openPopup();
+        resaltarMunicipioSeleccionado(layer);
       }
     });
 
-    document.getElementById('resetZoom').addEventListener('click', function() {
+    document.getElementById('resetZoomBtn').addEventListener('click', () => {
       map.setView([4.5709, -74.2973], 6);
-
-      Object.values(layersPorCodigo).forEach(layer => {
-        layer.setStyle({ fillOpacity: 0.5, opacity: 1 });
-      });
-
-      document.getElementById('departamentoSelect').value = '';
-      document.getElementById('municipioSelect').innerHTML = '<option value="">-- Selecciona un municipio --</option>';
+      ocultarTodasLasEtiquetas();
     });
   </script>
 </body>
