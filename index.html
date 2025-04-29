@@ -146,21 +146,23 @@ actualizarSelectMunicipios();
       }
     });
 
-    function actualizarSelectMunicipios(departamentoFiltrado = '') {
-      const municipioSelect = document.getElementById('municipioSelect');
-      municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
+   function actualizarSelectMunicipios(departamentoFiltrado = '') {
+  const municipioSelect = document.getElementById('municipioSelect');
+  municipioSelect.innerHTML = '<option value="">-- Selecciona un municipio --</option>';
 
-      if (!departamentoFiltrado) return;
+  if (!departamentoFiltrado) return;
 
-      municipiosData.forEach(mun => {
-        if (mun.departamento === departamentoFiltrado) {
-          const option = document.createElement('option');
-          option.value = mun.codigo;
-          option.textContent = mun.nombre;
-          municipioSelect.appendChild(option);
-        }
-      });
-    }
+  const municipiosFiltrados = municipiosData
+    .filter(mun => mun.departamento === departamentoFiltrado)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  municipiosFiltrados.forEach(mun => {
+    const option = document.createElement('option');
+    option.value = mun.codigo;
+    option.textContent = mun.nombre;
+    municipioSelect.appendChild(option);
+  });
+}
 
     document.getElementById('departamentoSelect').addEventListener('change', function() {
       const departamentoSeleccionado = this.value;
