@@ -67,11 +67,33 @@
   <script>
     const map = L.map('map').setView([4.5709, -74.2973], 6);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
+// Mapas base
+const cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map); // mapa base por defecto
+
+const cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+});
+
+const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye',
+  maxZoom: 19
+});
+
+// Control de mapas base
+const baseMaps = {
+  "Callejero": cartoLight,
+  "Satélite": esriSat,
+  "Modo Oscuro": cartoDark
+};
+
+L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
+
 
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
