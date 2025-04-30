@@ -89,15 +89,20 @@ const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/service
   maxZoom: 19
 });
 
+const osmStandard = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+  maxZoom: 19
+});
+
 // Control de mapas base
 const baseMaps = {
   "Callejero": cartoLight,
   "Satélite": esriSat,
-  "Modo Oscuro": cartoDark
+  "Modo Oscuro": cartoDark,
+  "Calles y etiquetas (OSM)": osmStandard
 };
 
 L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
-
 
     function getColor(cantidad) {
       return cantidad > 50 ? '#800026' :
