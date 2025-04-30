@@ -65,6 +65,14 @@
 
   <button id="resetZoomBtn">Quitar Zoom</button>
 
+  <div id="dashboard" style="position:absolute; top:10px; left:10px; z-index:1000; background:white; padding:10px; border-radius:8px; box-shadow:0 0 5px rgba(0,0,0,0.3); font-size:14px; max-width:250px;">
+  <h4 style="margin:0 0 10px;">Tablero de Control</h4>
+  <div id="kpiTotal">Total general: ...</div>
+  <div id="kpiMunicipios">Municipios con datos: ...</div>
+  <div id="kpiPromedio">Promedio por municipio: ...</div>
+</div>
+
+  
   <div id="map"></div>
   <div id="toastMsg">Vista general restaurada</div>
 
@@ -130,6 +138,26 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
       complete: function(results) {
         const data = results.data;
         const cantidadMap = {};
+        let totalCantidad = 0;
+let municipiosConDatos = 0;
+
+data.forEach(row => {
+  const codigo = row['MpCodigo']?.trim();
+  const cantidad = parseFloat(row['Cantidad']);
+  if (codigo && !isNaN(cantidad)) {
+    cantidadMap[codigo] = cantidad;
+    totalCantidad += cantidad;
+    municipiosConDatos++;
+  }
+});
+
+const promedio = municipiosConDatos > 0 ? (totalCantidad / municipiosConDatos).toFixed(2) : 0;
+
+// Actualiza el tablero
+document.getElementById('kpiTotal').textContent = `Total general: ${totalCantidad}`;
+document.getElementById('kpiMunicipios').textContent = `Municipios con datos: ${municipiosConDatos}`;
+document.getElementById('kpiPromedio').textContent = `Promedio por municipio: ${promedio}`;
+
         data.forEach(row => {
           const codigo = row['MpCodigo']?.trim();
           const cantidad = parseFloat(row['Cantidad']);
