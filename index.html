@@ -147,9 +147,9 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
                 const cantidad = cantidadMap[codigo] || 0;
                 return {
                   fillColor: getColor(cantidad),
-                  weight: 1,
+                  weight: 1.5,
                   opacity: 1,
-                  color: 'lightgray',
+                  color: 'gray',
                   fillOpacity: 0.5
                 };
               },
@@ -232,7 +232,7 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
       }
       layer.setStyle({
         weight: 3,
-        color: '#111',
+        color: '#29e6d0',
         fillOpacity: 0.7
       });
       municipioSeleccionadoLayer = layer;
