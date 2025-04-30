@@ -147,9 +147,9 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
                 const cantidad = cantidadMap[codigo] || 0;
                 return {
                   fillColor: getColor(cantidad),
-                  weight: 1.1,
+                  weight: 1,2,
                   opacity: 1,
-                  color: 'gray',
+                  color: '#bababa',
                   fillOpacity: 0.5
                 };
               },
@@ -231,7 +231,7 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
         geoLayer.resetStyle(municipioSeleccionadoLayer);
       }
       layer.setStyle({
-        weight: 3,
+        weight: 4,
         color: '#29e6d0',
         fillOpacity: 0.7
       });
@@ -247,7 +247,7 @@ L.control.layers(baseMaps, null, { position: 'bottomright' }).addTo(map);
   layer.setStyle({ 
     fillOpacity: 0.7, 
     opacity: 1,
-    color: '#000000' // borde normal visible
+    color: '#cccccc' // borde normal visible
   });
 } else {
   layer.setStyle({ 
